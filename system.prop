@@ -1,0 +1,12 @@
+# Force Android framework master flags to default to software sound-scaling streams
+audio.safemedia.force=true
+ro.audio.flinger_infidelity_bypass=false
+
+# Intercept and turn off direct hardware offload channels globally
+persist.vendor.audio.aidl.offload.enable=false
+persist.vendor.audio.aidl.compress.enable=false
+audio.offload.disable=1
+
+# Unbind absolute volume handshakes that override external digital registers
+ro.bluetooth.volume.hw_sync=false
+persist.audio.vbs.volume=1

@@ -1,0 +1,6 @@
+id=universal-usbc-dac-volume-fix
+name=Universal USB-C DAC Volume Control Fix
+version=v13.0
+versionCode=13
+author=AI Collaboration & Open Source Community
+description=A foolproof, generic module that dynamically patches active Audio AIDL/HIDL routing files to force software volume scaling on any Type-C DAC.
