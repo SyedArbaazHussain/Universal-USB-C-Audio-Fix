@@ -1,25 +1,21 @@
 #!/system/bin/sh
 ###############################################################################
 # USB-C DAC Volume Control Fix - Runtime Service Script
-# Version: 14.0
+# Version: 0.3
 # Runs at: service (late boot stage)
-# Purpose: Apply runtime audio framework fixes, integrate with v4a/jdsp
+# Purpose: Apply runtime audio framework fixes, independent software-volume mapping,
+#          KSU/APatch detection, and comprehensive logging.
 ###############################################################################
 
 MODDIR=${0%/*}
 LOGFILE="/data/adb/usb_dac_volume.log"
 
-log_info() {
-    echo "[SERVICE] $1" >> "$LOGFILE"
-}
+log() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1" >> "$LOGFILE"; }
 
-log_error() {
-    echo "[SERVICE_ERROR] $1" >> "$LOGFILE"
-}
-
-log_success() {
-    echo "[SERVICE_OK] $1" >> "$LOGFILE"
-}
+log_info() { log "SERVICE: $1"; }
+log_warn() { log "SERVICE_WARN: $1"; }
+log_error() { log "SERVICE_ERROR: $1"; }
+log_ok() { log "SERVICE_OK: $1"; }
 
 log_info "========== SERVICE PHASE INITIATED =========="
 
@@ -35,9 +31,9 @@ while [ "$(getprop sys.boot_completed)" != "1" ] && [ $BOOT_TIMEOUT -lt 120 ]; d
 done
 
 if [ "$(getprop sys.boot_completed)" = "1" ]; then
-    log_success "System boot completed"
+    log_ok "System boot completed"
 else
-    log_error "Boot timeout - proceeding anyway"
+    log_warn "Boot timeout - proceeding anyway"
 fi
 
 # ============================================================================
@@ -77,7 +73,28 @@ if [ $AIDL_DETECTED -eq 0 ] && [ $HIDL_DETECTED -eq 0 ]; then
     log_error "Could not detect explicit framework, using hybrid approach"
 fi
 
+
 setprop sys.usb_dac_volume.framework "$RUNTIME_FRAMEWORK"
+
+# ============================================================================
+# KSU / APatch detection (meta-module managers)
+# ============================================================================
+
+log_info "Checking for KSU/APatch meta-module managers..."
+KSU_DETECTED=0
+APATCH_DETECTED=0
+if ls /data/adb/modules 2>/dev/null | grep -qi ksu; then
+    KSU_DETECTED=1
+    log_ok "KSU-like module manager detected"
+fi
+if ls /data/adb/modules 2>/dev/null | grep -qi apatch; then
+    APATCH_DETECTED=1
+    log_ok "APatch-like module manager detected"
+fi
+
+if [ $KSU_DETECTED -eq 0 ] && [ $APATCH_DETECTED -eq 0 ]; then
+    log_info "No KSU/APatch specific manager detected; proceeding with generic module support"
+fi
 
 # ============================================================================
 # DETECT USB DAC DEVICES
@@ -240,7 +257,74 @@ fi
 # ============================================================================
 
 setprop sys.usb_dac_volume.initialized 1
-setprop sys.usb_dac_volume.service_version "14.0"
+setprop sys.usb_dac_volume.service_version "0.3"
+
+log_info "Registering final verification and starting monitoring services"
+
+# Input-event fallback: monitor volume keys and map to software volume
+monitor_volume_keys() {
+    log_info "Starting input-event monitor for volume keys (fallback)"
+
+    # Find candidate input devices
+    for ev in /dev/input/event*; do
+        [ -e "$ev" ] || continue
+        # Use getevent if available, otherwise skip
+        if command -v getevent >/dev/null 2>&1; then
+            getevent -lt "$ev" | while read -r line; do
+                case "$line" in
+                    *KEY_VOLUMEUP*|*VOLUMEUP*)
+                        log_info "Detected KEY_VOLUMEUP on $ev"
+                        adjust_software_volume up
+                        ;;
+                    *KEY_VOLUMEDOWN*|*VOLUMEDOWN*)
+                        log_info "Detected KEY_VOLUMEDOWN on $ev"
+                        adjust_software_volume down
+                        ;;
+                esac
+            done &
+        fi
+    done
+}
+
+adjust_software_volume() {
+    ACTION="$1"
+    # Try tinymix/amixer first
+    if command -v tinymix >/dev/null 2>&1; then
+        log_info "Adjusting volume via tinymix: $ACTION"
+        if [ "$ACTION" = "up" ]; then
+            tinymix 'Master Playback Volume' +1 >/dev/null 2>&1 || true
+        else
+            tinymix 'Master Playback Volume' -1 >/dev/null 2>&1 || true
+        fi
+        return
+    fi
+
+    if command -v amixer >/dev/null 2>&1; then
+        log_info "Adjusting volume via amixer: $ACTION"
+        if [ "$ACTION" = "up" ]; then
+            amixer -D default sset Master 2%+ >/dev/null 2>&1 || true
+        else
+            amixer -D default sset Master 2%- >/dev/null 2>&1 || true
+        fi
+        return
+    fi
+
+    # Fallback to cmd media if available (Android >=11)
+    if command -v cmd >/dev/null 2>&1; then
+        log_info "Adjusting volume via cmd media: $ACTION"
+        if [ "$ACTION" = "up" ]; then
+            cmd media volume --stream 3 --adjust 1 >/dev/null 2>&1 || true
+        else
+            cmd media volume --stream 3 --adjust -1 >/dev/null 2>&1 || true
+        fi
+        return
+    fi
+
+    log_warn "No supported user-space mixer found; software volume mapping skipped"
+}
+
+# Start input-event monitor in background (non-blocking)
+monitor_volume_keys &
 
 log_info "========== SERVICE PHASE COMPLETED =========="
 exit 0

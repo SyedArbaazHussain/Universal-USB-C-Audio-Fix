@@ -1,8 +1,8 @@
 id=usb_dac_volume_control
 name=USB-C DAC Volume Control Fix
-version=v14.0
-versionCode=14
-author=AI Collaboration & Open Source Community
-description=Enterprise-grade Magisk module with AIDL/HIDL detection, dynamic audio policy patching, v4a/jdsp integration, and complete USB-C DAC volume control restoration for all ROM types and audio frameworks.
+version=v0.3
+versionCode=3
+author=Syed Arbaaz Hussain
+description=Enterprise-grade Magisk module with AIDL/HIDL detection, dynamic audio policy patching, independent software-volume mapping, and comprehensive KSU/APatch support.
 minMagisk=24000
 minApi=29

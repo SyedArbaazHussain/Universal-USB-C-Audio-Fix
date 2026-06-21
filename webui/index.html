@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>USB-C DAC Volume Control - WebUI</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css" rel="stylesheet">
+  </head>
+  <body>
+    <nav>
+      <div class="nav-wrapper blue darken-2">
+        <a href="#" class="brand-logo" style="margin-left:12px;">USB-C DAC Fix</a>
+        <ul id="nav-mobile" class="right hide-on-med-and-down">
+          <li><a href="#status">Status</a></li>
+          <li><a href="#logs">Logs</a></li>
+          <li><a href="#settings">Settings</a></li>
+        </ul>
+      </div>
+    </nav>
+
+    <div class="container">
+      <h5 id="status">Module Status</h5>
+      <div id="statusCard" class="card-panel grey lighten-4">Loading...</div>
+
+      <h5 id="logs">Recent Logs</h5>
+      <pre id="logOutput" class="card-panel grey lighten-5" style="max-height:400px;overflow:auto;">Loading logs...</pre>
+
+      <h5 id="settings">Actions</h5>
+      <a class="waves-effect waves-light btn" id="refreshBtn">Refresh</a>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+    <script>
+      async function fetchStatus(){
+        document.getElementById('statusCard').textContent = 'Local web UI; connect to device to fetch status.';
+      }
+      async function fetchLogs(){
+        document.getElementById('logOutput').textContent = 'Logs are available on the device at /data/adb/usb_dac_volume.log';
+      }
+      document.getElementById('refreshBtn').addEventListener('click', ()=>{ fetchStatus(); fetchLogs(); });
+      fetchStatus(); fetchLogs();
+    </script>
+  </body>
+</html>

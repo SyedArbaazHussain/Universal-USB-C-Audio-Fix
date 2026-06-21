@@ -1,203 +1,80 @@
-# USB-C DAC Volume Control Fix - Magisk Module
+# USB-C DAC Volume Control Fix
 
-## Overview
+Enterprise-grade Magisk/KSU/APatch module to restore reliable software volume
+control for USB-C earphones with built-in DACs. The module applies conservative
+audio-policy patches, enforces software mixing, and provides a runtime fallback
+that attempts to map physical volume keys to software-controlled mixers where
+possible.
 
-This is an enterprise-grade Magisk module designed to fix USB-C audio volume control issues on Android devices with USB DACs (Digital Audio Converters). It implements comprehensive audio framework detection, dynamic policy patching, and integration with popular audio enhancement modules like V4A and JDSP.
-
-**Version:** 14.0  
-**Minimum Magisk:** 24000  
-**Minimum Android API:** 29 (Android 10)
-
-## 🚀 Quick Installation
-
-**Download the latest release from GitHub:**
-
-1. Go to [Releases](../../releases)
-2. Download the ZIP file (`usb_dac_volume_control_v14.0.zip`)
-3. Open **Manager**
-4. Tap **Modules** → **Install from storage**
-5. Select the downloaded ZIP
-6. Reboot
-
-**Done!** Your USB-C DAC volume control should now work perfectly. ✅
+Version: v0.3
+Minimum Magisk: 24000
+Minimum Android API: 29 (Android 10)
 
 ---
 
-## Problem Statement
+## Installation (Supported managers)
 
-Many Android devices with USB-C earphones featuring built-in DACs experience volume control issues:
+This module supports three common module managers: **Magisk**, **KSU** and
+**APatch**. The module attempts to detect which manager is present and will
+apply the same fixes in each environment.
 
-- **Symptom 1:** Volume cannot be adjusted using system volume buttons for USB audio
-- **Symptom 2:** V4A/JDSP volume controls are required instead of native system volume
-- **Symptom 3:** Volume resets or doesn't apply across different apps/videos
-- **Symptom 4:** Works fine with other earphones, specifically breaks with USB-C DACs
+- Magisk (recommended): Install from the Magisk Manager Modules screen.
+- KSU / APatch: Install as a meta-module using the respective manager UI.
 
-### Root Cause
+Steps (Magisk / KSU / APatch):
 
-Modern Android ROMs implement hardware audio offloading and direct audio paths for performance. These bypass the software audio mixer where system volume control is applied. When a USB DAC device is connected, the ROM routes audio directly to hardware, completely ignoring software volume controls set through the UI or physical buttons.
+1. Download the latest release ZIP from the Releases page
+2. Install using your module manager of choice (Magisk Manager, KSU, APatch)
+3. Reboot the device when prompted
 
----
-
-## Solution Architecture
-
-### 1. **Audio Policy Patching**
-
-The module modifies XML audio policy configuration files to remove hardware-only audio flags:
-
-- `AUDIO_OUTPUT_FLAG_DIRECT` - Direct hardware output bypass
-- `AUDIO_OUTPUT_FLAG_COMPRESS_OFFLOAD` - Hardware compression offload
-- `AUDIO_OUTPUT_FLAG_HW_AV_SYNC` - Hardware A/V sync for direct paths
-
-**Files Patched:**
-```
-/vendor/etc/audio_policy_configuration.xml
-/vendor/etc/audio/audio_policy_configuration.xml
-/system/etc/audio_policy_configuration.xml
-/system/etc/audio/audio_policy_configuration.xml
-/vendor/etc/usb_audio_policy_configuration.xml
-/vendor/etc/audio_effects.xml
-```
-
-### 2. **Framework-Aware Detection**
-
-The module detects the audio framework at **installation time** and **runtime**:
-
-#### AIDL Architecture (Android 12+)
-- Modern `audio_policy_configuration.xml`
-- AIDL audio service (`android.hardware.audio.service`)
-- Unified audio routing
-
-#### HIDL Architecture (Android 8-11)
-- Legacy audio effects (`audio_effects.xml`)
-- HIDL HAL services
-- Separate device routing
-
-#### Hybrid Fallback
-- If detection fails, applies both AIDL and HIDL patches
-- Ensures compatibility across diverse ROM implementations
-
-### 3. **System Property Override**
-
-Comprehensive property overrides ensure software volume control:
-
-```properties
-audio.safemedia.force=true                              # Force software mixer
-ro.audio.flinger_infidelity_bypass=false                # Disable direct paths
-persist.vendor.audio.aidl.offload.enable=false          # Disable AIDL offload
-audio.offload.disable=1                                  # Disable all offloading
-ro.bluetooth.volume.hw_sync=false                       # Disable HW sync
-```
-
-### 4. **V4A & JDSP Integration**
-
-If V4A or JDSP modules are detected, the module integrates seamlessly:
-
-- Detects V4A installation and enables volume control layer
-- Detects JDSP/Dolby and configures audio routing
-- Ensures USB audio passes through both frameworks
-- Does NOT interfere with their operation
-
-### 5. **USB Audio Device Routing**
-
-Specific USB audio device management:
-
-- Disables automatic USB audio routing (manual routing instead)
-- Sets default USB output to software-mixed stream
-- Configures USB endpoint volume parameters
-- Detects and logs connected USB audio devices
-
-### 6. **Audio Service Management**
-
-Graceful audio service restart:
-
-- Waits for full system boot completion
-- Restarts `audioserver` to reload configuration
-- Restarts `android.hardware.audio.service` (AIDL)
-- Allows all property changes to take effect
-- Uses stop/start, not force kill
+If the installation succeeds the module writes a log to `/data/adb/usb_dac_volume.log`.
 
 ---
 
-## Installation Process
+## Installation log and verification
 
-### Step 1: Download from GitHub Releases
-Visit the [Releases page](../../releases) and download the latest `usb_dac_volume_control_v14.0.zip`
+During installation the module writes detailed status to the installation log:
 
-### Step 2: Install via Magisk Manager
-1. Open **Magisk Manager** app
-2. Navigate to the **Modules** tab
-3. Tap the **➕** button or **Install from storage**
-4. Select the ZIP file you downloaded
-5. Wait for installation to complete
-6. Tap **Reboot** when prompted
+- `/data/adb/usb_dac_volume.log` — contains install and runtime diagnostics.
 
-### Step 3: Verify Installation
+After reboot, verify:
+
 ```bash
 adb shell getprop sys.usb_dac_volume.initialized
-# Expected output: 1
+# expected: 1
+
+adb shell getprop sys.usb_dac_volume.service_version
+# expected: 0.3
 ```
 
-### Step 4: Test
-1. Connect your USB-C DAC earphones
-2. Press Volume Up/Down buttons
-3. Volume should change in system display and audio output
-
-**That's it!** ✅
-
-## Alternative Installation Method (Terminal)
-
-If you prefer the command line:
-
-```bash
-adb shell su -c "magisk module install /path/to/usb_dac_volume_control_v14.0.zip"
-adb reboot
-```
+If installation fails, check the log for step-by-step status and error lines.
 
 ---
 
-## Phase Breakdown
+## Design notes (concise)
 
-The module operates in three phases:
+- The module prefers property-based overrides and conservative XML patches.
+- Provides runtime monitor to map volume keys to available user-space mixers
+        (tinymix / amixer / cmd media) when software mixing is required.
+- Detects V4A / JDSP and integrates where present, but does not depend on them.
+- Detects KSU / APatch meta-module managers and re-applies patches if modules
+        get mounted/unmounted by the manager.
 
 ---
 
-## Configuration Files
+## Support & Contribution
 
-### `module.prop`
-- Module metadata: ID, name, version, description
-- Magisk version requirements
+Only two root documentation files are kept in the repository:
 
-### `system.prop`
-- **Primary property override file**
-- Contains 80+ audio framework properties
-- Applied automatically on every boot
-- Ensures consistent volume behavior
+- `README.md` (this file)
+- `CONTRIBUTING.md`
 
-### `common/system/build.prop.d/audio.prop`
-- **Fallback property directory** (some ROMs prefer this)
-- Contains critical properties for maximum compatibility
-- Automatically sourced during property initialization
+Please open issues on GitHub and include `/data/adb/usb_dac_volume.log` when
+reporting failures.
 
-### `post-fs-data.sh`
-- **Early boot initialization**
-- Runs at post-fs-data stage (before audio services start)
-- Prepares state and verifies configuration files
+---
 
-### `service.sh`
-- **Main service script** (runs at service stage)
-- Framework detection and configuration
-- Audio service management
-- Logging and verification
-
-### `customize.sh`
-- **Installation script**
-- Audio policy XML patching
-- Framework detection
-- V4A/JDSP detection
-
-### `uninstall.sh`
-- **Uninstall script**
-- Removes state files
+License: GPL-3.0-or-later
 - Resets properties
 - Restarts audio services for original behavior
 

@@ -7,6 +7,11 @@
 ###############################################################################
 
 SKIP_UNZIP=0
+LOGFILE="/data/adb/usb_dac_volume.log"
+
+# Ensure log file exists and has a header
+mkdir -p "$(dirname "$LOGFILE")" 2>/dev/null || true
+echo "[INSTALL $(date +'%Y-%m-%d %H:%M:%S')] Starting installation" > "$LOGFILE" 2>/dev/null || true
 
 # ============================================================================
 # LOGGING & UTILITIES
@@ -41,6 +46,14 @@ ui_print "  USB-C DAC Volume Control Fix - Installation Phase"
 ui_print "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 log_verbose "Starting system audio framework detection..."
+
+# Detect KSU/APatch meta-module managers during install
+if ls /data/adb/modules 2>/dev/null | grep -qi ksu; then
+    log_success "KSU-like meta-module manager present"
+fi
+if ls /data/adb/modules 2>/dev/null | grep -qi apatch; then
+    log_success "APatch-like meta-module manager present"
+fi
 
 # Detect AIDL vs HIDL architecture
 DETECTED_AIDL=0

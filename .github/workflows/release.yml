@@ -81,12 +81,31 @@ jobs:
           VERSION=${{ steps.version.outputs.VERSION }}
           VERSION_NUM=${{ steps.version.outputs.VERSION_NUM }}
           
-          # Read changelog
-          CHANGELOG=$(sed -n "/## \[${VERSION_NUM}\]/,/^## \[/p" CHANGELOG.md | head -n -1)
+          # Read changelog if present
+          CHANGELOG=''
+          if [ -f CHANGELOG.md ]; then
+            CHANGELOG=$(sed -n "/## \[${VERSION_NUM}\]/,/^## \[/p" CHANGELOG.md | head -n -1 || true)
+          fi
+
+          # Get commit and author info for this tag
+          GIT_COMMIT=$(git rev-parse --verify --short HEAD || true)
+          GIT_AUTHOR_NAME=$(git show -s --format='%an' HEAD || true)
+          GIT_AUTHOR_EMAIL=$(git show -s --format='%ae' HEAD || true)
+          GIT_COMMIT_URL="https://github.com/${{ github.repository }}/commit/${GIT_COMMIT}"
+
+          # Decide prerelease: if the version number contains a dot and the part after the dot is non-zero
+          PRERELEASE=false
+          if echo "${VERSION_NUM}" | grep -q "\."; then
+            SUFFIX=$(echo "${VERSION_NUM}" | awk -F. '{print $2}')
+            if [ "${SUFFIX}" != "0" ] && [ -n "${SUFFIX}" ]; then
+              PRERELEASE=true
+            fi
+          fi
+          echo "PRERELEASE=${PRERELEASE}" >> $GITHUB_OUTPUT
           
           # Create release notes
-          cat > RELEASE_NOTES.md << 'EOF'
-          # USB-C DAC Volume Control Fix - ${{ env.VERSION }}
+          cat > RELEASE_NOTES.md << EOF
+          # USB-C DAC Volume Control Fix - ${VERSION}
           
           ## Installation
           
@@ -114,13 +133,17 @@ jobs:
           # Expected output: ${{ steps.version.outputs.VERSION_NUM }}
           ```
           
+          ## Commit
+
+- Commit: ${GIT_COMMIT} ([view](${GIT_COMMIT_URL}))
+- Author: ${GIT_AUTHOR_NAME} <${GIT_AUTHOR_EMAIL}>
+
           ## What's New
-          
-          ${{ env.CHANGELOG }}
+
+          ${CHANGELOG}
           
           ## Support
           
-          - **Quick Help:** See [QUICK_REFERENCE.md](QUICK_REFERENCE.md)
           - **Full Docs:** See [README.md](README.md)
           - **Issues:** Check logs at `/data/adb/usb_dac_volume.log`
           
@@ -155,7 +178,7 @@ jobs:
             ${{ env.ZIP_NAME }}.sha256
           body_path: RELEASE_NOTES.md
           draft: false
-          prerelease: false
+          prerelease: ${{ steps.release_notes.outputs.PRERELEASE || 'false' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           
