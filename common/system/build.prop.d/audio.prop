@@ -1,0 +1,64 @@
+# ============================================================================
+# USB-C DAC Volume Control Fix - Additional Audio Properties (system.prop.d)
+# Version: 14.0
+# Location: /system/build.prop.d/ (Alternative property directory for some ROMs)
+# ============================================================================
+
+# This file is automatically sourced by the system on boot for property initialization
+# It provides redundant property fallback for maximum ROM compatibility
+
+# ============================================================================
+# CRITICAL USB AUDIO CONTROL PROPERTIES
+# ============================================================================
+
+# Ensure software volume control is NEVER overridden by hardware offload
+audio.safemedia.force=true
+ro.audio.flinger_infidelity_bypass=false
+
+# Disable all forms of hardware audio acceleration for USB devices
+persist.vendor.audio.aidl.offload.enable=false
+persist.vendor.audio.aidl.compress.enable=false
+audio.offload.disable=1
+persist.audio.offload.enabled=false
+
+# ============================================================================
+# USB DAC SPECIFIC ROUTING
+# ============================================================================
+
+# Disable automatic USB audio routing (use manual software routing)
+persist.sys.usb_audio.routing=manual
+ro.audio.usb.routing=true
+
+# USB audio device enumeration
+audio.usb.period_us=20000
+persist.sys.usb.config=mtp,adb
+
+# ============================================================================
+# VOLUME CONTROL CONSISTENCY
+# ============================================================================
+
+# Disable hardware absolute volume for all audio output types
+ro.bluetooth.volume.hw_sync=false
+persist.audio.vbs.volume=1
+
+# Force consistent volume behavior across all apps
+ro.config.media_vol_steps=30
+audio.deep_buffer.media=true
+
+# ============================================================================
+# AUDIO MIXING & FRAMEWORK
+# ============================================================================
+
+# All audio must pass through software mixer
+persist.audio.default.device=speaker
+
+# Use Flinger audio mixing for all devices
+media.stagefright.audio.deep=true
+
+# ============================================================================
+# GENERIC MODE ACTIVATION
+# ============================================================================
+
+# Force generic (non-device-specific) audio implementation
+ro.audio.generic=true
+vendor.audio.compat.mode=true

@@ -1,6 +1,8 @@
-id=universal-usbc-dac-volume-fix
-name=Universal USB-C DAC Volume Control Fix
-version=v13.0
-versionCode=13
+id=usb_dac_volume_control
+name=USB-C DAC Volume Control Fix
+version=v14.0
+versionCode=14
 author=AI Collaboration & Open Source Community
-description=A foolproof, generic module that dynamically patches active Audio AIDL/HIDL routing files to force software volume scaling on any Type-C DAC.
+description=Enterprise-grade Magisk module with AIDL/HIDL detection, dynamic audio policy patching, v4a/jdsp integration, and complete USB-C DAC volume control restoration for all ROM types and audio frameworks.
+minMagisk=24000
+minApi=29

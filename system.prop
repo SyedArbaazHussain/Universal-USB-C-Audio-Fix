@@ -1,12 +1,170 @@
-# Force Android framework master flags to default to software sound-scaling streams
+# ============================================================================
+# USB-C DAC Volume Control Fix - System Properties
+# Version: 14.0
+# Purpose: Global audio framework configuration for software volume control
+# ============================================================================
+
+# ============================================================================
+# CORE AUDIO VOLUME CONTROL PROPERTIES
+# ============================================================================
+
+# Force all audio output through software mixer (critical for USB DAC volume control)
 audio.safemedia.force=true
+
+# Disable Flinger infidelity bypass - ensures all audio goes through software mixer
 ro.audio.flinger_infidelity_bypass=false
 
-# Intercept and turn off direct hardware offload channels globally
+# Use software-based volume scaling instead of hardware offload
+audio.deep_buffer.media=true
+
+# ============================================================================
+# AIDL AUDIO FRAMEWORK PROPERTIES (Android 12+)
+# ============================================================================
+
+# Disable AIDL hardware offload for USB devices
 persist.vendor.audio.aidl.offload.enable=false
 persist.vendor.audio.aidl.compress.enable=false
+
+# Force AIDL audio to use software mixing
+persist.vendor.audio.aidl.usb.routing=true
+
+# AIDL Bluetooth absolute volume - DISABLED for USB DAC compatibility
+persist.vendor.audio.aidl.bluevolume=false
+
+# ============================================================================
+# HIDL AUDIO FRAMEWORK PROPERTIES (Android 8-11)
+# ============================================================================
+
+# Disable HIDL hardware offload
+persist.audio.offload.enabled=false
 audio.offload.disable=1
 
-# Unbind absolute volume handshakes that override external digital registers
+# HIDL direct output flags - disable for USB
+persist.audio.output.hw_accel=false
+
+# ============================================================================
+# USB AUDIO SPECIFIC PROPERTIES
+# ============================================================================
+
+# Enable USB audio input/output
+persist.sys.usb.config=mtp,adb,midi
+audio.usb.period_us=20000
+
+# USB audio device routing configuration
+ro.audio.usb.routing=true
+persist.audio.usb.routing=true
+
+# USB headset absolute volume - DISABLED (causes volume control issues)
 ro.bluetooth.volume.hw_sync=false
 persist.audio.vbs.volume=1
+
+# ============================================================================
+# AUDIO OUTPUT & DEVICE ROUTING
+# ============================================================================
+
+# Primary audio output configuration
+ro.audio.routing=aud_dsps
+ro.config.media_vol_steps=30
+
+# Device-specific audio routing (generic, non-exclusive)
+persist.audio.default.device=speaker
+
+# Speaker/Earpiece audio path
+ro.audio.monitorRotation=true
+audio.speaker.effect=true
+
+# ============================================================================
+# AUDIO EFFECTS & PROCESSING
+# ============================================================================
+
+# Disable proprietary audio effects that might bypass volume control
+vendor.audio.effects.bypass=true
+persist.vendor.audio.effects=false
+
+# Audio dump configuration (for debugging if needed)
+persist.sys.audio.dump=0
+
+# ============================================================================
+# AUDIO HAL CONFIGURATION
+# ============================================================================
+
+# Generic audio HAL properties (not device-specific)
+persist.vendor.audio.misconfig.list=__none
+persist.vendor.audio.power.supply.whitelist=__none
+
+# Audio HAL version compatibility
+ro.vendor.audio.sdk.compat.metatags_version=9
+
+# ============================================================================
+# MEDIA FRAMEWORK PROPERTIES
+# ============================================================================
+
+# Media server configuration
+media.stagefright.audio.deep=true
+
+# Disable low-latency audio mode for USB (ensures software processing)
+ro.audio.usb.latency=5000
+
+# ============================================================================
+# V4A INTEGRATION PROPERTIES
+# ============================================================================
+
+# V4A (ViPER4Android) compatibility flags
+ro.audio.viper=false
+vendor.audio.feature.v4a=false
+persist.vendor.audio.v4a.enable=false
+
+# Note: V4A properties are auto-detected and configured by service.sh if module is present
+
+# ============================================================================
+# JDSP INTEGRATION PROPERTIES
+# ============================================================================
+
+# JDSP/Dolby audio processing flags
+ro.audio.jdsp=false
+vendor.audio.feature.jdsp=false
+
+# Note: JDSP properties are auto-detected and configured by service.sh if module is present
+
+# ============================================================================
+# BLUETOOTH AUDIO PROPERTIES
+# ============================================================================
+
+# Bluetooth absolute volume - DISABLED for consistency with USB DAC behavior
+persist.sys.bluetooth.absvolume=false
+persist.vendor.audio.bt.abs_volume=false
+ro.bluetooth.a2dp.sink.impl.ofld_cap=false
+
+# ============================================================================
+# AUDIO DEBUG & LOGGING
+# ============================================================================
+
+# Enable audio debug logging for troubleshooting
+ro.vendor.audio.debug.log=false
+persist.vendor.audio.log=0
+
+# Audio dump location
+audio.debug.dump.dir=/data/adb
+
+# ============================================================================
+# COMPATIBILITY FLAGS
+# ============================================================================
+
+# Ensure generic mode (no device-specific optimizations)
+ro.audio.generic=true
+
+# Disable vendor-specific audio optimizations
+vendor.audio.compat.mode=true
+
+# Fallback audio mode
+persist.sys.usb.config=mtp,adb
+
+# ============================================================================
+# SAFETY & STABILITY
+# ============================================================================
+
+# Prevent audio service crashes
+sys.audio.service.priority=aud_dsps
+
+# Audio buffer size for stability
+persist.audio.buffer.size=16

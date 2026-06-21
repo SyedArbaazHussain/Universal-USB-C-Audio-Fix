@@ -1,0 +1,167 @@
+name: Create Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (e.g., v14.0)'
+        required: true
+        default: 'v14.0'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        
+      - name: Get version from tag or input
+        id: version
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/}
+          else
+            VERSION=${{ github.event.inputs.version }}
+          fi
+          echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
+          echo "VERSION_NUM=${VERSION//v/}" >> $GITHUB_OUTPUT
+          
+      - name: Build module ZIP
+        run: |
+          VERSION=${{ steps.version.outputs.VERSION }}
+          VERSION_NUM=${{ steps.version.outputs.VERSION_NUM }}
+          ZIP_NAME="usb_dac_volume_control_${VERSION}.zip"
+          
+          # Create temporary build directory
+          mkdir -p build
+          
+          # Copy all module files
+          cp module.prop build/
+          cp customize.sh build/
+          cp post-fs-data.sh build/
+          cp service.sh build/
+          cp uninstall.sh build/
+          cp system.prop build/
+          
+          # Copy utility script
+          cp check_audio_devices.sh build/
+          
+          # Create directory structure for properties fallback
+          mkdir -p build/common/system/build.prop.d
+          cp common/system/build.prop.d/audio.prop build/common/system/build.prop.d/
+          
+          # Set executable permissions
+          chmod 755 build/customize.sh
+          chmod 755 build/post-fs-data.sh
+          chmod 755 build/service.sh
+          chmod 755 build/uninstall.sh
+          chmod 755 build/check_audio_devices.sh
+          
+          # Create ZIP archive
+          cd build
+          zip -r "../${ZIP_NAME}" . -x "*.git*" "*.github*"
+          cd ..
+          
+          # Generate SHA256 checksum
+          sha256sum "${ZIP_NAME}" > "${ZIP_NAME}.sha256"
+          
+          echo "ZIP_NAME=${ZIP_NAME}" >> $GITHUB_ENV
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+          
+      - name: Create Release Notes
+        id: release_notes
+        run: |
+          VERSION=${{ steps.version.outputs.VERSION }}
+          VERSION_NUM=${{ steps.version.outputs.VERSION_NUM }}
+          
+          # Read changelog
+          CHANGELOG=$(sed -n "/## \[${VERSION_NUM}\]/,/^## \[/p" CHANGELOG.md | head -n -1)
+          
+          # Create release notes
+          cat > RELEASE_NOTES.md << 'EOF'
+          # USB-C DAC Volume Control Fix - ${{ env.VERSION }}
+          
+          ## Installation
+          
+          ### Option 1: Magisk Manager (Easiest)
+          1. Download the ZIP file below
+          2. Open **Magisk Manager**
+          3. Tap **Modules** → **Install from storage**
+          4. Select the ZIP file
+          5. Tap **Reboot**
+          
+          ### Option 2: Terminal
+          ```bash
+          adb shell su -c "magisk module install usb_dac_volume_control_${{ env.VERSION }}.zip"
+          adb reboot
+          ```
+          
+          ## Verification
+          ```bash
+          # Check module initialized
+          adb shell getprop sys.usb_dac_volume.initialized
+          # Expected output: 1
+          
+          # Check module version
+          adb shell getprop sys.usb_dac_volume.service_version
+          # Expected output: ${{ steps.version.outputs.VERSION_NUM }}
+          ```
+          
+          ## What's New
+          
+          ${{ env.CHANGELOG }}
+          
+          ## Support
+          
+          - **Quick Help:** See [QUICK_REFERENCE.md](QUICK_REFERENCE.md)
+          - **Full Docs:** See [README.md](README.md)
+          - **Issues:** Check logs at `/data/adb/usb_dac_volume.log`
+          
+          ## Files
+          
+          - `usb_dac_volume_control_${{ env.VERSION }}.zip` - Ready-to-install Magisk module
+          - `usb_dac_volume_control_${{ env.VERSION }}.zip.sha256` - Checksum for verification
+          
+          ## SHA256 Verification
+          
+          ```bash
+          # Verify ZIP integrity
+          sha256sum -c usb_dac_volume_control_${{ env.VERSION }}.zip.sha256
+          ```
+          
+          ---
+          
+          **Module ID:** usb_dac_volume_control  
+          **Version:** ${{ env.VERSION }}  
+          **Minimum Magisk:** 24.0  
+          **Minimum Android:** 10 (API 29)
+          EOF
+          
+          cat RELEASE_NOTES.md
+          
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            ${{ env.ZIP_NAME }}
+            ${{ env.ZIP_NAME }}.sha256
+          body_path: RELEASE_NOTES.md
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Upload artifacts (manual trigger)
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v3
+        with:
+          name: module-release
+          path: |
+            ${{ env.ZIP_NAME }}
+            ${{ env.ZIP_NAME }}.sha256
+            RELEASE_NOTES.md

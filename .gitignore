@@ -1,0 +1,78 @@
+# Build and Release Files
+build/
+*.zip
+*.zip.sha256
+RELEASE_NOTES.md
+dist/
+out/
+*.tar.gz
+
+# Module State Files
+usb_dac_volume_state/
+module_state/
+/data/
+
+# IDE and Editor Files
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+*.iml
+.code-workspace
+
+# System Files
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+*.swp
+*.swo
+*~
+._*
+
+# Temporary Files
+*.tmp
+*.bak
+*.log
+*.pid
+*~
+
+# Test Output
+test_results/
+coverage/
+.coverage
+.pytest_cache/
+
+# Backup Files
+*.backup
+backup/
+archives/
+old_versions/
+
+# Credentials (security)
+*.key
+*.pem
+*.password
+credentials.sh
+.env
+.env.local
+
+# Generated Files
+gen/
+obj/
+bin/
+node_modules/
+
+# CI/CD Artifacts
+.travis.yml.bak
+.github/workflows/*.bak
+
+# Python Cache
+__pycache__/
+*.py[cod]
+*.pyc
+
+# Virtual Environments
+venv/
+env/
+ENV/
